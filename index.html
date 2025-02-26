@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Monitoramento Rodoviário Nacional</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        #map { height: 600px; }
+        .incident-marker {
+            filter: hue-rotate(300deg) saturate(200%);
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(0.95); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(0.95); }
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+    <header class="bg-gray-800 border-b border-red-600">
+        <div class="container mx-auto px-6 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <svg class="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/>
+                    <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                </svg>
+                <h1 class="text-2xl font-bold">Monitoramento Rodoviário</h1>
+            </div>
+            <div class="flex items-center gap-6">
+                <div class="text-center">
+                    <p class="text-red-500 font-mono text-xl" id="liveClock"></p>
+                    <p class="text-xs text-gray-400">Horário Oficial BR</p>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-6 py-8">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Mapa -->
+            <div class="bg-gray-800 rounded-xl p-6 border border-red-600/30">
+                <div id="map" class="rounded-lg overflow-hidden"></div>
+            </div>
+
+            <!-- Lista de Incidentes -->
+            <div class="bg-gray-800 rounded-xl p-6 border border-red-600/30 h-[600px] overflow-y-auto">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-bold text-red-500">Incidentes Ativos</h2>
+                    <span class="text-sm text-red-400">Atualizando: <span id="updateTime"></span></span>
+                </div>
+                
+                <div class="space-y-4" id="incidentsContainer">
+                    <!-- Incidentes serão carregados aqui -->
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="border-t border-red-600/30 mt-8 py-6 bg-gray-800">
+        <div class="container mx-auto px-6 text-center text-sm text-gray-400">
+            © 2025 Dandara Silva - Sistema de Monitoramento Rodoviário Nacional
+        </div>
+    </footer>
+
+    <script>
+        // Configuração do Mapa
+        const map = L.map('map').setView([-15.7801, -47.9292], 4);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png?key=4545f3dfdd074a05a45234537252402', {
+            attribution: 'Monitoramento Rodoviário'
+        }).addTo(map);
+
+        // Dados de Incidentes (Simulação)
+        const incidents = [
+            {
+                type: 'acidente',
+                coordinates: [-23.5505, -46.6333],
+                title: 'Acidente Grave BR-116',
+                details: 'Colisão múltipla com 4 veículos - Via parcialmente bloqueada',
+                severity: 'crítico',
+                time: '14:45'
+            },
+            {
+                type: 'bloqueio',
+                coordinates: [-15.7942, -47.8822],
+                title: 'Bloqueio Total BR-040',
+                details: 'Manifestação bloqueando toda a pista',
+                severity: 'alto',
+                time: '15:20'
+            },
+            {
+                type: 'obras',
+                coordinates: [-22.9068, -43.1729],
+                title: 'Obras na Pista RJ',
+                details: 'Redução para 1 faixa - Previsão até 30/08',
+                severity: 'médio',
+                time: '10:15'
+            }
+            // Adicione mais incidentes...
+        ];
+
+        // Ícones personalizados
+        const icons = {
+            acidente: L.icon({
+                iconUrl: 'https://cdn-icons-png.flaticon.com/512/2791/2791772.png',
+                iconSize: [32, 32]
+            }),
+            bloqueio: L.icon({
+                iconUrl: 'https://cdn-icons-png.flaticon.com/512/984/984465.png',
+                iconSize: [32, 32]
+            }),
+            obras: L.icon({
+                iconUrl: 'https://cdn-icons-png.flaticon.com/512/619/619097.png',
+                iconSize: [32, 32]
+            })
+        };
+
+        // Adicionar marcadores ao mapa
+        incidents.forEach(incident => {
+            L.marker(incident.coordinates, { icon: icons[incident.type] })
+                .addTo(map)
+                .bindPopup(`
+                    <strong class="text-red-500">${incident.title}</strong><br>
+                    <span class="text-sm">${incident.details}</span>
+                `);
+        });
+
+        // Gerar lista de incidentes
+        const incidentsContainer = document.getElementById('incidentsContainer');
+        incidents.forEach(incident => {
+            const item = document.createElement('div');
+            item.className = `bg-gray-700 p-4 rounded-lg border-l-4 ${
+                incident.severity === 'crítico' ? 'border-red-500' : 
+                incident.severity === 'alto' ? 'border-orange-500' : 'border-yellow-500'
+            }`;
+            
+            item.innerHTML = `
+                <div class="flex items-start gap-3">
+                    <img src="${icons[incident.type].options.iconUrl}" class="w-6 h-6">
+                    <div class="flex-1">
+                        <div class="flex justify-between items-start">
+                            <h3 class="font-medium">${incident.title}</h3>
+                            <span class="text-sm ${incident.severity === 'crítico' ? 'text-red-500' : 
+                            incident.severity === 'alto' ? 'text-orange-500' : 'text-yellow-500'}">
+                                ${incident.time}
+                            </span>
+                        </div>
+                        <p class="text-sm text-gray-300 mt-1">${incident.details}</p>
+                        <div class="mt-2 flex gap-2">
+                            <span class="text-xs px-2 py-1 rounded ${
+                                incident.severity === 'crítico' ? 'bg-red-900/50 text-red-300' : 
+                                incident.severity === 'alto' ? 'bg-orange-900/50 text-orange-300' : 'bg-yellow-900/50 text-yellow-300'
+                            }">
+                                ${incident.type.toUpperCase()}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            incidentsContainer.appendChild(item);
+        });
+
+        // Atualização do relógio
+        function updateTime() {
+            const now = new Date();
+            document.getElementById('liveClock').textContent = 
+                now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            document.getElementById('updateTime').textContent = 
+                now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        }
+        setInterval(updateTime, 1000);
+        updateTime();
+    </script>
+</body>
+</html>
